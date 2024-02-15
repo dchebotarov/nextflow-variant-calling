@@ -1,0 +1,96 @@
+
+plugins {
+    id 'nf-amazon'
+}
+
+
+params {
+
+ outdir = 'results'
+  max_memory = '128.GB'
+	max_cpus = 16
+	max_time = '3.days'
+}
+
+cleanup = true
+
+
+profiles {
+
+  irrimac {
+
+	 docker.enabled = true
+	 
+	 process {
+		
+		executor = 'local' 
+
+		withName: align {
+			container = "public.ecr.aws/p1p2i7f9/samtools-picard-bwa:v1"
+			cpus = 4
+			memory = "1024.MB"
+	  }
+
+		withName: bamProcess {
+		  container = "public.ecr.aws/p1p2i7f9/samtools-picard-bwa:v1"
+			cpus = 2
+			memory = "2000.MB"
+		}
+
+    withName: variantCall {
+			container = 'public.ecr.aws/biocontainers/gatk4:4.1.9.0--py39_0'
+			cpus = 8
+			memory = "12000.MB"
+		}
+
+	 }
+
+  }
+
+
+
+ aws_poc {
+
+	 aws {
+
+	    profile = 'batchuser'  // user to run nextflow jobs
+
+	    region = 'ap-southeast-2'
+
+       client {
+        maxConnections = 20
+        connectionTimeout = 10000
+       //  storageEncryption = 'AES256'
+       } 
+   }
+
+   // aws.batch.cliPath = '/home/ec2-user/miniconda/bin/aws' // if self installed
+   aws.batch.cliPath = '/usr/bin/aws' // in the AL2023
+	 
+	 docker {
+     enabled = true
+	 }
+
+	 process {
+      withName: align {
+        container = "public.ecr.aws/p1p2i7f9/samtools-picard-bwa:v1"
+        executor = 'local'
+      }
+
+       withName: bamProcess {
+               container = "public.ecr.aws/p1p2i7f9/samtools-picard-bwa:v1"
+         executor = 'local'
+       }
+
+       withName: variantCall {
+                         // container = 'public.ecr.aws/aws-genomics/broadinstitute/gatk:4.1.8.1'
+             container = 'public.ecr.aws/biocontainers/gatk4:4.1.9.0--py39_0'
+             // containerOptions = '--shm-size 16000000 --ulimit nofile=1280:2560 --ulimit nproc=16:32'
+       }
+     }
+
+ }
+
+
+}
+
