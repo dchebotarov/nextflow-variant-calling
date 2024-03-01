@@ -1,0 +1,75 @@
+
+
+params {
+  // Output base path
+  outdir = 'results/'
+  
+	ref = "references/IRGSP-1.0_genome.fasta"
+
+  gatk_jar = '~/SOFTWARE/Genetics/GATK/gatk-4.2.3.0/gatk-package-4.2.3.0-local.jar' 
+
+  gatk_invoc =  "~/SOFTWARE/Genetics/GATK/gatk-4.2.3.0/gatk "                               
+                                                                                
+  // picard_docker = gatk_docker // since gatk v4                                 
+  picard_invoc = "java -jar $gatk_jar"    // "java -jar /usr/gitc/picard.jar "     
+                                                                                
+  bwa_invoc = "bwa"          //    "/usr/gitc/bwa "                   
+  samtools_invoc = "samtools"    
+
+	max_memory = '32.GB'
+	max_cpus = 16
+	max_time = '3.days'
+
+}
+
+cleanup = true
+
+
+profiles {
+
+  local_mac {
+		withName: align {
+			cpus = 8
+			memory = "3024.MB"
+	  }
+
+		withName: bamProcess {
+			cpus = 2
+			memory = "3000.MB"
+		}
+
+    withName: variantCall {
+			cpus = 12
+			memory = "12000.MB"
+		}
+	}
+
+
+  local_docker {
+	 docker.enabled = true
+	 process {
+		executor = 'local' 
+		withName: align {
+			container = "public.ecr.aws/p1p2i7f9/samtools-picard-bwa:v1"
+			cpus = 4
+			memory = "1024.MB"
+	  }
+
+		withName: bamProcess {
+		  container = "public.ecr.aws/p1p2i7f9/samtools-picard-bwa:v1"
+			cpus = 2
+			memory = "2000.MB"
+		}
+
+    withName: variantCall {
+			container = 'public.ecr.aws/biocontainers/gatk4:4.1.9.0--py39_0'
+			cpus = 8
+			memory = "12000.MB"
+		}
+
+	 }
+
+  }
+
+}
+
