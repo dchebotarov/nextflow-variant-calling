@@ -2,4 +2,3 @@ sample,fastq_1,fastq_2,readgroup,num_rg
 Palay,test-data/fastq/palay-5_1.fq.gz,test-data/fastq/palay-5_2.fq.gz,RG-1,2
 Palay,test-data/fastq/palay-6_1.fq.gz,test-data/fastq/palay-6_2.fq.gz,RG-2,2
 S1,test-data/fastq/subseq-1_1.fq.gz,test-data/fastq/subseq-1_2.fq.gz,rg0,1
-S2,test-data/fastq/subseq-2_1.fq.gz,test-data/fastq/subseq-2_2.fq.gz,rg0,1

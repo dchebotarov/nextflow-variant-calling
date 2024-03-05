@@ -289,37 +289,22 @@ process variantCall {
 workflow {
   
   main:
-    
-   // add_num_rg( Channel.value( file(params.samplesheet)))
-
-
      ALIGN( ref_rel_files, samples_ch)   
-    //ALIGN( ref_rel_files, add_num_rg.out)
 
-    /* rg_ch =  Channel.collect( ALIGN.out)                                          
-         .splitCsv(header: true)                                                       
-         .map { row -> tuple( row.sample, row.readgroup,                               
-                       file(row.fastq_1),                                       
-                       file(row.fastq_2), 
-                       num_rg ) } 
-    bamProcess(rg_ch)
-    */
     bamProcess( ALIGN.out.bam )
 
     bam_mapped = bamProcess.out.proc_bam . map{ 
            sample, rg, num_rg, bam, bai -> 
             [ groupKey( sample, num_rg )
                , bam
-               , bai  // when grouping, would it be
+               , bai  
                ]
      } . groupTuple() .dump(tag: "mapped" )
-
-
 
      // Merge BAMs
     bam_to_merge = bam_mapped.branch{ sample, bam, bai 
          ->
-        // bam is a list, so use bam.size() to asses number of intervals
+        // bam is a list, so use bam.size()
         single:   bam.size() <= 1
             return [  sample
                      , bam[0]
@@ -339,10 +324,6 @@ workflow {
      variantCall( ref_files_for_varcall, bam_all)
    // variantCall( ref_files_for_varcall, bamProcess.out.proc_bam )
 
-
-    // align.out.verbiage.view()
-
  emit:
-   //align.out.bam
    variantCall.out.gvcf
 }

@@ -7,12 +7,12 @@ samplesheet="multi-readgroup/sampleSheet.multirg.ct.csv"
 
 echo Running:  $script
 echo
-nextflow run   -c nextflow.config.local  \
+nextflow run   -c multi-readgroup/nextflow.config  \
 	 $script  \
-	 -profile local_mac  \
+	 -profile aws_poc  \
 	 -work-dir   workdir  \
 	 --samplesheet $samplesheet \
+   -with-docker  
    --ref test-data/ref/Chr7.fasta   "$@" 
 
-# --ref references/genome1_IRGSP-1.0.fasta
 
