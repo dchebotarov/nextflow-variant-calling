@@ -36,7 +36,9 @@ picard_invoc = params.picard_invoc     // "java -jar /usr/gitc/picard.jar "
 bwa_invoc = params.bwa_invoc           //    "/usr/gitc/bwa "                   
 samtools_invoc = params.samtools_invoc // "samtools"                            
      
+params.tmpdir ?= "./TMPDIR"
 
+println "TMP DIR: ${params.tmpdir} "
 
 // ############################################################### //
 // ##############   Prepare inputs ############################### //
@@ -119,7 +121,7 @@ process ALIGN {
  tuple val(sid), val(rg), path(read1), path(read2), val(num_rg)
 
  output:
- tuple val(sid), val(rg), val(num_rg),  path("${sid}.bam"), emit: bam
+ tuple val(sid), val(rg), val(num_rg),  path("${sid}*${rg}.bam"), emit: bam
  stdout  emit: verbiage  
 
  script:
@@ -127,8 +129,10 @@ process ALIGN {
  echo "cpu: ${task.cpus}  mem: ${task.memory}"
  echo "${workflow.containerEngine}"
  echo "##   "  ${sid} ':' ${read1} ${read2}
+ set -euo pipefail
  $bwa_invoc  mem -t ${task.cpus}  ${ref} ${read1} ${read2} > out.sam
- samtools view -Obam out.sam > ${sid}.bam
+ samtools view -Obam,level=5 out.sam > ${sid}_${rg}.bam
+ rm *.sam # if conversion successful, remove SAM 
  """
 }
 
@@ -155,23 +159,34 @@ process bamProcess {
 
  script:
  """
+ set -euo pipefail
+
  echo $bam 
   # sort sam
-  $picard_invoc  SortSam -I $bam -O sorted.bam \
+    $picard_invoc  SortSam -I $bam -O sorted.bam \
     --VALIDATION_STRINGENCY LENIENT \
     --CREATE_INDEX TRUE \
-    --SORT_ORDER coordinate 
+    --SORT_ORDER coordinate \
+    ${params.sort_extra_params} --TMP_DIR ${params.tmpdir}
+
   # fix mate
   $picard_invoc  FixMateInformation -I  sorted.bam  -O fxmt.bam \
       --VALIDATION_STRINGENCY LENIENT \
-    --CREATE_INDEX TRUE
+    --CREATE_INDEX TRUE \
+    ${params.fixmate_extra_params} --TMP_DIR ${params.tmpdir}
+
+  rm sorted.bam
 
   # mark dup
   $picard_invoc  MarkDuplicates -I  fxmt.bam  -O markdup.bam \
       --VALIDATION_STRINGENCY LENIENT \
     --CREATE_INDEX TRUE \
     --METRICS_FILE ${sid}.markdup.metrics \
-    --MAX_FILE_HANDLES_FOR_READ_ENDS_MAP 1000
+    --MAX_FILE_HANDLES_FOR_READ_ENDS_MAP 1000 \
+    --TMP_DIR ${params.tmpdir} \
+    ${params.markdup_extra_params}
+
+  rm fxmt.bam
 
   # add/replace read groups
   $picard_invoc  AddOrReplaceReadGroups -I  markdup.bam  -O addrep.bam \
@@ -182,7 +197,11 @@ process bamProcess {
     --RGID ${sid} \
     --RGPU PU1 \
     --RGPL ${params.PL} \
-    --RGCN ${params.CN}
+    --RGCN ${params.CN} \
+	--TMP_DIR ${params.tmpdir} \
+    ${params.addrep_extra_params}
+
+  rm markdup.bam
 
   # set the name of final file
   mv addrep.bam ${sid}.${rg}.proc.bam
@@ -235,7 +254,7 @@ process variantCall {
  // storeDir 'store-gvcf'
 
  // container "$gatk_docker"
- // containerOptions ' -v `pwd`:/data -v results-gvcf:/gatk/results-gvcf '
+ containerOptions " -v ${params.tmpdir}:/tmpdir "
 
  input:
  tuple path(ref), path(ref_fai), path(ref_dict)
@@ -276,7 +295,8 @@ process variantCall {
          -mbq 20 \
           --showHidden true \
          -bamout ${sid}.bamOut.bam \
-  
+       --tmp-dir tmpdir    ####  ${params.tmpdir}
+
   # 
   #      \$bands
 
